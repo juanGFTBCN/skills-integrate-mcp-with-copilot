@@ -22,10 +22,94 @@ header {
   background-color: #1a237e;
   color: white;
   border-radius: 5px;
+  position: relative;
 }
 
 header h1 {
   margin-bottom: 10px;
+}
+
+.header-top-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.user-menu {
+  position: absolute;
+  right: 15px;
+  top: 0;
+}
+
+.icon-button {
+  font-size: 20px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background-color: #3949ab;
+}
+
+.icon-button:hover {
+  background-color: #5c6bc0;
+}
+
+.user-menu-panel {
+  position: absolute;
+  right: 0;
+  top: 48px;
+  min-width: 160px;
+  background-color: white;
+  border-radius: 6px;
+  padding: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.user-menu-panel p {
+  color: #1a237e;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.user-menu-panel button {
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.user-menu-panel button:last-child {
+  margin-bottom: 0;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.modal-content {
+  width: 90%;
+  max-width: 420px;
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.secondary-button {
+  background-color: #757575;
+}
+
+.secondary-button:hover {
+  background-color: #616161;
 }
 
 main {
@@ -121,6 +205,10 @@ section h3 {
   border-radius: 3px;
 }
 
+.delete-btn.hidden {
+  display: none;
+}
+
 .delete-btn:hover {
   background-color: #ffebee;
 }
@@ -147,6 +235,20 @@ section h3 {
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 16px;
+}
+
+.info-note {
+  margin-bottom: 15px;
+  padding: 10px;
+  border-radius: 4px;
+  background-color: #e8eaf6;
+  border: 1px solid #c5cae9;
+  color: #1a237e;
+}
+
+#signup-form.disabled {
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 button {
