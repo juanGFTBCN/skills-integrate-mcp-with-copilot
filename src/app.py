@@ -5,10 +5,14 @@ A super simple FastAPI application that allows students to view and sign up
 for extracurricular activities at Mergington High School.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
+import uvicorn
 import os
+import json
+import secrets
 from pathlib import Path
 
 app = FastAPI(title="Mergington High School API",
@@ -18,6 +22,27 @@ app = FastAPI(title="Mergington High School API",
 current_dir = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=os.path.join(Path(__file__).parent,
           "static")), name="static")
+
+
+def _load_teachers() -> dict:
+    """Load teacher credentials from the JSON file configured for admin mode."""
+    teachers_file = current_dir / "teachers.json"
+    if not teachers_file.exists():
+        return {}
+
+    with open(teachers_file, "r", encoding="utf-8") as file:
+        data = json.load(file)
+
+    teachers = data.get("teachers", [])
+    return {
+        teacher["username"]: teacher["password"]
+        for teacher in teachers
+        if "username" in teacher and "password" in teacher
+    }
+
+
+teacher_credentials = _load_teachers()
+active_sessions = {}
 
 # In-memory activity database
 activities = {
@@ -78,6 +103,27 @@ activities = {
 }
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+def _get_teacher_from_auth_header(authorization: str | None) -> str:
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Teacher login required")
+
+    prefix = "Bearer "
+    if not authorization.startswith(prefix):
+        raise HTTPException(status_code=401, detail="Invalid authorization header")
+
+    token = authorization[len(prefix):].strip()
+    username = active_sessions.get(token)
+    if not username:
+        raise HTTPException(status_code=401, detail="Session expired or invalid")
+
+    return username
+
+
 @app.get("/")
 def root():
     return RedirectResponse(url="/static/index.html")
@@ -88,9 +134,40 @@ def get_activities():
     return activities
 
 
+@app.post("/auth/login")
+def login_teacher(payload: LoginRequest):
+    expected_password = teacher_credentials.get(payload.username)
+    if not expected_password or expected_password != payload.password:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    token = secrets.token_urlsafe(32)
+    active_sessions[token] = payload.username
+    return {"token": token, "username": payload.username}
+
+
+@app.get("/auth/status")
+def auth_status(authorization: str | None = Header(default=None)):
+    username = _get_teacher_from_auth_header(authorization)
+    return {"authenticated": True, "username": username}
+
+
+@app.post("/auth/logout")
+def logout_teacher(authorization: str | None = Header(default=None)):
+    _get_teacher_from_auth_header(authorization)
+    token = authorization[len("Bearer "):].strip()
+    active_sessions.pop(token, None)
+    return {"message": "Logged out"}
+
+
 @app.post("/activities/{activity_name}/signup")
-def signup_for_activity(activity_name: str, email: str):
+def signup_for_activity(
+    activity_name: str,
+    email: str,
+    authorization: str | None = Header(default=None)
+):
     """Sign up a student for an activity"""
+    _get_teacher_from_auth_header(authorization)
+
     # Validate activity exists
     if activity_name not in activities:
         raise HTTPException(status_code=404, detail="Activity not found")
@@ -111,8 +188,14 @@ def signup_for_activity(activity_name: str, email: str):
 
 
 @app.delete("/activities/{activity_name}/unregister")
-def unregister_from_activity(activity_name: str, email: str):
+def unregister_from_activity(
+    activity_name: str,
+    email: str,
+    authorization: str | None = Header(default=None)
+):
     """Unregister a student from an activity"""
+    _get_teacher_from_auth_header(authorization)
+
     # Validate activity exists
     if activity_name not in activities:
         raise HTTPException(status_code=404, detail="Activity not found")
@@ -130,3 +213,7 @@ def unregister_from_activity(activity_name: str, email: str):
     # Remove student
     activity["participants"].remove(email)
     return {"message": f"Unregistered {email} from {activity_name}"}
+
+
+if __name__ == "__main__":
+    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
